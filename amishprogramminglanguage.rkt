@@ -1,3 +1,6 @@
+;; The first three lines of this file were inserted by DrRacket. They record metadata
+;; about the language level of this file in a form that our tools can easily process.
+#reader(lib "htdp-advanced-reader.ss" "lang")((modname Amish) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #t #t none #f () #f)))
 ;global variables
 (define listOfOperators '(+ - * /))
 
@@ -170,7 +173,6 @@
 (parse-exp anExp2)
 (run-program (parse-exp anExp2))
 
-;-------------Exlude in homework 10----------
 ;----example of how it should look-----------
 ;(define env (empty-env))
 ;(define scope (empty-scope))

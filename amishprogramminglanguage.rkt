@@ -1,5 +1,8 @@
 ;global variables
 (define listOfOperators '(+ - * / %))
+(define listOfArithmeticBooleanOperators '(< > <= >= == !=))
+(define listOfLogicalBooleanOperators '(&& ||)) ;Not added yet
+(define listOfReservedWords '(if let while))
 
 ;generic helper functions
 ;returns true if val is found in lst
@@ -79,6 +82,16 @@
 (define op?
   (lambda (s)
     (contains s listOfOperators)))
+
+;returns true is s is an arithmetic boolean operator and false otherwise
+(define boolean-arithmetic-op?
+  (lambda (s)
+    (contains s listOfArithmeticBooleanOperators)))
+
+;returns true is s is a reserved word and false otherwis
+(define reservedWord?
+  (lambda (s)
+    (contains s listOfReservedWords)))
 ;core parser functions
 ;our version of parse
 (define parse-exp
@@ -86,9 +99,16 @@
     (cond
       ((boolean? lcExp) (list 'bool-exp lcExp))
       ((number? lcExp) (list 'lit-exp lcExp))
-      ((symbol? lcExp) (if (op? lcExp)
-                           (list 'op-exp lcExp)
-                           (list 'var-exp lcExp)))
+      ((symbol? lcExp)
+       (cond
+         ((op? lcExp) (list 'op-exp lcExp))
+         ((boolean-arithmetic-op? lcExp) (list 'bool-arith-op-exp lcExp))
+         ((reservedWord? lcExp)
+          (cond
+            ((eq? lcExp 'if) (list 'if-exp))
+            ((eq? lcExp 'let) (list 'let-exp))
+            ((eq? lcExp 'while) (list 'while-exp))))
+         (else (list 'var-exp lcExp))))
       ((eq? (car lcExp) 'lambda)
        (list 'lambda-exp
              (cadr lcExp)
@@ -120,7 +140,21 @@
      (extend-env-4-lambda-helper lovars lovals (empty-scope)) ;builds up to be a new scope and then extend our env with that scope
      env)));;;support storing for expressions -> store a parsed representation (rather than pre-resolving them)
 
-;evaluates an appexpression who's car is an operator
+;evaluates an app expression whose car is a arithmetic boolean operator
+(define eval-bool-arith-op-exp
+  (lambda (appExp env)
+    (let ((op1 (eval-exp (cadr appExp) env))
+          (op2 (eval-exp (caddr appExp) env))
+          (theOp (cadar appExp)))
+      (cond
+        ((eq? theOp '<) (< op1 op2))
+        ((eq? theOp '<=) (<= op1 op2))
+        ((eq? theOp '>) (> op1 op2))
+        ((eq? theOp '>=) (>= op1 op2))
+        ((eq? theOp '==) (= op1 op2))
+        ((eq? theOp '!=) (not (= op1 op2)))))))
+
+;evaluates an app expression who's car is an operator
 (define eval-op-exp
   (lambda (appExp env)
     (let ((op1 (eval-exp (cadr appExp) env))
@@ -134,9 +168,18 @@
          ((eq? theOp '%) (modulo op1 op2))
          (else #f)))))
 
+;evaluates an appexpression who's car is an if-exp
+(define eval-if-exp
+  (lambda (appExp env)
+    (let ((boolExp (eval-exp (car appExp) env))
+          (trueExp (eval-exp (cadr appExp) env))
+          (falseExp (eval-exp (caddr appExp) env)))
+    (if boolExp trueExp falseExp))))
+                   
 (define eval-exp
   (lambda (lce env)
     (cond
+      ((eq? (car lce) 'bool-exp) (cadr lce))
       ((eq? (car lce) 'lit-exp) (cadr lce)) 
       ((eq? (car lce) 'var-exp) (apply-env (cadr lce) env))
       ((eq? (car lce) 'lambda-exp) (eval-exp (caddr lce) env))
@@ -154,6 +197,12 @@
          ((eq? (list-ref (list-ref lce 1) 0) 'op-exp)
           ;first element of app-exp is an op-exp (+ 1 2)
           (eval-op-exp (cdr lce) env))
+         ((eq? (list-ref (list-ref lce 1) 0) 'bool-arith-op-exp)
+          ;first element of app-exp is a bool-arith-op-exp
+          (eval-bool-arith-op-exp (cdr lce) env))
+         ((eq? (list-ref (list-ref lce 1) 0) 'if-exp)
+          ;first element of app-exp is an if-exp
+          (eval-if-exp (cddr lce) env))
          (else
            ;first element of app-exp is a var-exp
            (let ((theLambda (eval-exp (list-ref lce 1) env))
@@ -175,7 +224,8 @@
 ;(define anExp2 '((lambda ()7)))
 
 ;(define anExp2 '((lambda (a b c) (a b c)) (lambda (x y) (+ x (% y 4))) 5 6))
-(define anExp2 '(#f #t))
+(define anExp2 '(let ((a 5) (b 7)) (+ a b)))
+;(define anExp2 '(if (== 6 5) #t #f)) ;;boolean works
 ;(define anExp2 '(lambda (a b) (a b)))
 
 (parse-exp anExp2)

@@ -1,5 +1,5 @@
 ;global variables
-(define listOfOperators '(+ - * /))
+(define listOfOperators '(+ - * / %))
 
 ;generic helper functions
 ;returns true if val is found in lst
@@ -130,6 +130,7 @@
          ((eq? theOp '-) (- op1 op2))
          ((eq? theOp '*) (* op1 op2))
          ((eq? theOp '/) (/ op1 op2))
+         ((eq? theOp '%) (modulo op1 op2))
          (else #f)))))
 
 (define eval-exp
@@ -172,7 +173,7 @@
 ;(define anExp2 '((lambda (a b) b) 5 6))
 ;(define anExp2 '((lambda ()7)))
 
-(define anExp2 '((lambda (a b c) (a b c)) (lambda (x y) (+ x y)) 5 6))
+(define anExp2 '((lambda (a b c) (a b c)) (lambda (x y) (+ x (% y 4))) 5 6))
 ;(define anExp2 '(lambda (a b) (a b)))
 
 ;(parse-exp anExp2)

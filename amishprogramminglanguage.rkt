@@ -84,6 +84,7 @@
 (define parse-exp
   (lambda (lcExp)
     (cond
+      ((boolean? lcExp) (list 'bool-exp lcExp))
       ((number? lcExp) (list 'lit-exp lcExp))
       ((symbol? lcExp) (if (op? lcExp)
                            (list 'op-exp lcExp)
@@ -173,11 +174,12 @@
 ;(define anExp2 '((lambda (a b) b) 5 6))
 ;(define anExp2 '((lambda ()7)))
 
-(define anExp2 '((lambda (a b c) (a b c)) (lambda (x y) (+ x (% y 4))) 5 6))
+;(define anExp2 '((lambda (a b c) (a b c)) (lambda (x y) (+ x (% y 4))) 5 6))
+(define anExp2 '(#f #t))
 ;(define anExp2 '(lambda (a b) (a b)))
 
-;(parse-exp anExp2)
-(run-program (parse-exp anExp2))
+(parse-exp anExp2)
+;(run-program (parse-exp anExp2))
 
 ;----example of how it should look-----------
 ;(define env (empty-env))

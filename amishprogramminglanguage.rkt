@@ -1,6 +1,3 @@
-;; The first three lines of this file were inserted by DrRacket. They record metadata
-;; about the language level of this file in a form that our tools can easily process.
-#reader(lib "htdp-advanced-reader.ss" "lang")((modname Amish) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #t #t none #f () #f)))
 ;global variables
 (define listOfOperators '(+ - * /))
 
@@ -125,7 +122,15 @@
 ;evaluates an appexpression who's car is an operator
 (define eval-op-exp
   (lambda (appExp env)
-    appExp))
+    (let ((op1 (eval-exp (cadr appExp) env))
+           (op2 (eval-exp (caddr appExp) env))
+           (theOp (cadar appExp)))
+       (cond
+         ((eq? theOp '+) (+ op1 op2))
+         ((eq? theOp '-) (- op1 op2))
+         ((eq? theOp '*) (* op1 op2))
+         ((eq? theOp '/) (/ op1 op2))
+         (else #f)))))
 
 (define eval-exp
   (lambda (lce env)
@@ -144,9 +149,9 @@
                              (if (eq? (car x) 'lambda-exp)
                                  x
                                  (eval-exp x env))) (cddr lce)) env)))
-         ((eq? (list-ref lce 1) 0) 'op-exp)
-         ;first element of app-exp is an op-exp (+ 1 2)
-         
+         ((eq? (list-ref (list-ref lce 1) 0) 'op-exp)
+          ;first element of app-exp is an op-exp (+ 1 2)
+          (eval-op-exp (cdr lce) env))
          (else
            ;first element of app-exp is a var-exp
            (let ((theLambda (eval-exp (list-ref lce 1) env))
@@ -170,7 +175,7 @@
 (define anExp2 '((lambda (a b c) (a b c)) (lambda (x y) (+ x y)) 5 6))
 ;(define anExp2 '(lambda (a b) (a b)))
 
-(parse-exp anExp2)
+;(parse-exp anExp2)
 (run-program (parse-exp anExp2))
 
 ;----example of how it should look-----------

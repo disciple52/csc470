@@ -140,6 +140,13 @@
      (extend-env-4-lambda-helper lovars lovals (empty-scope)) ;builds up to be a new scope and then extend our env with that scope
      env)));;;support storing for expressions -> store a parsed representation (rather than pre-resolving them)
 
+(define extend-env-4-let
+  (lambda (app-exp env)
+    (extend-env-4-lambda
+     (map (lambda (lst) (list-ref (list-ref lst 1) 1)) (cdr app-exp)) ;coupling example - https://youtu.be/CQLndEWurO0?t=25m18s
+     (map (lambda (exp) (eval-exp exp env)) (map (lambda (lst) (list-ref lst 2)) (cdr app-exp)))
+     env)))
+
 ;evaluates an app expression whose car is a arithmetic boolean operator
 (define eval-bool-arith-op-exp
   (lambda (appExp env)
@@ -175,18 +182,6 @@
           (trueExp (eval-exp (cadr appExp) env))
           (falseExp (eval-exp (caddr appExp) env)))
     (if boolExp trueExp falseExp))))
-
-(define get-lovar
-  (lambda (appExp)
-    (list-ref (list-ref appExp 1) 1)))
-
-(define get-loval
-  (lambda (appExp)
-    (list-ref (list-ref appExp 2) 1)))
-    
-(define extend-let-env
-  (lambda (appExp env)
-    (extend-env-4-lambda (map get-lovar appExp) (map get-loval appExp) env)))
                    
 (define eval-exp
   (lambda (lce env)
@@ -217,7 +212,7 @@
           (eval-if-exp (cddr lce) env))
          ((eq? (list-ref (list-ref lce 1) 0) 'let-exp)
           ;first element of app-exp is a let-exp
-          (eval-exp (list-ref lce 3) (extend-let-env (cdr (list-ref lce 2)) env)))
+          (eval-exp (list-ref lce 3) (extend-env-4-let (list-ref lce 2) env))
          (else
            ;first element of app-exp is a var-exp
            (let ((theLambda (eval-exp (list-ref lce 1) env))
@@ -227,7 +222,7 @@
                                  (eval-exp x env))) (cddr lce))))
              (eval-exp theLambda (extend-env-4-lambda (list-ref theLambda 1)
                                                       theInputs
-                                                      env)))))))))        
+                                                      env))))))))) 
 
 (define run-program
   (lambda (lce)
@@ -239,7 +234,9 @@
 ;(define anExp2 '((lambda ()7)))
 
 ;(define anExp2 '((lambda (a b c) (a b c)) (lambda (x y) (+ x (% y 4))) 5 6))
-(define anExp2 '(let ((a 5) (b 7)) (* a b)))
+;(define anExp '(let ((a 5) (b 7)) (+ a (let ((c 3) (b (- b 2))) (+ b c)))))
+(define anExp '(let ((a 5) (b 7)) (+ a (let ((c 3) (b (* c 2))) (+ b c))))) ;should be 14 when working
+;(define anExp '(let ((a 5) (b 4)) (+ a b)))
 ;^ what a let expression looks like
 ;an app expression whos car is the list let expression
 ;whos cadr is an app expression that is a list of app expressions
@@ -249,9 +246,10 @@
 ;(define anExp2 '(if (== 6 5) #t #f)) ;;boolean works
 ;(define anExp2 '(lambda (a b) (a b)))
 
-(parse-exp anExp2)
+;(parse-exp anExp2)
 (run-program (parse-exp anExp2))
 
+;(map (lambda (lst) (list-ref (list-ref lst 1) 1)) val) 
 ;----example of how it should look-----------
 ;(define env (empty-env))
 ;(define scope (empty-scope))

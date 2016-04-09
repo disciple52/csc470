@@ -225,6 +225,12 @@
 
 ;(define anExp2 '((lambda (a b c) (a b c)) (lambda (x y) (+ x (% y 4))) 5 6))
 (define anExp2 '(let ((a 5) (b 7)) (+ a b)))
+;^ what a let expression looks like
+;an app expression whos car is the list let expression
+;whos cadr is an app expression that is a list of app expressions
+;and whos body is some exression
+
+
 ;(define anExp2 '(if (== 6 5) #t #f)) ;;boolean works
 ;(define anExp2 '(lambda (a b) (a b)))
 

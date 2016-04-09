@@ -88,7 +88,7 @@
   (lambda (s)
     (contains s listOfArithmeticBooleanOperators)))
 
-;returns true is s is a reserved word and false otherwis
+;returns true is s is a reserved word and false otherwise
 (define reservedWord?
   (lambda (s)
     (contains s listOfReservedWords)))
@@ -175,6 +175,18 @@
           (trueExp (eval-exp (cadr appExp) env))
           (falseExp (eval-exp (caddr appExp) env)))
     (if boolExp trueExp falseExp))))
+
+(define get-lovar
+  (lambda (appExp)
+    (list-ref (list-ref appExp 1) 1)))
+
+(define get-loval
+  (lambda (appExp)
+    (list-ref (list-ref appExp 2) 1)))
+    
+(define extend-let-env
+  (lambda (appExp env)
+    (extend-env-4-lambda (map get-lovar appExp) (map get-loval appExp) env)))
                    
 (define eval-exp
   (lambda (lce env)
@@ -203,6 +215,9 @@
          ((eq? (list-ref (list-ref lce 1) 0) 'if-exp)
           ;first element of app-exp is an if-exp
           (eval-if-exp (cddr lce) env))
+         ((eq? (list-ref (list-ref lce 1) 0) 'let-exp)
+          ;first element of app-exp is a let-exp
+          (eval-exp (list-ref lce 3) (extend-let-env (cdr (list-ref lce 2)) env)))
          (else
            ;first element of app-exp is a var-exp
            (let ((theLambda (eval-exp (list-ref lce 1) env))
@@ -224,7 +239,7 @@
 ;(define anExp2 '((lambda ()7)))
 
 ;(define anExp2 '((lambda (a b c) (a b c)) (lambda (x y) (+ x (% y 4))) 5 6))
-(define anExp2 '(let ((a 5) (b 7)) (+ a b)))
+(define anExp2 '(let ((a 5) (b 7)) (* a b)))
 ;^ what a let expression looks like
 ;an app expression whos car is the list let expression
 ;whos cadr is an app expression that is a list of app expressions
@@ -235,7 +250,7 @@
 ;(define anExp2 '(lambda (a b) (a b)))
 
 (parse-exp anExp2)
-;(run-program (parse-exp anExp2))
+(run-program (parse-exp anExp2))
 
 ;----example of how it should look-----------
 ;(define env (empty-env))

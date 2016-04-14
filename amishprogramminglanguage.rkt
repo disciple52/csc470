@@ -147,7 +147,10 @@
         (extend-env-4-let (cdr loexp)
               (extend-env-4-lambda
                (list (cadr (car (cdr (car loexp)))))
-               (list (eval-exp (cadr (cdr (car loexp))) env))
+               (list
+                (if (eq? (caadr (cdr (car loexp))) 'lambda-exp)
+                    (cadr (cdr (car loexp)))
+                    ((eval-exp (cadr (cdr (car loexp))) env))))
                env)))))
 
 ;evaluates an app expression whose car is a arithmetic boolean operator
@@ -238,8 +241,10 @@
 
 ;(define anExp2 '((lambda (a b c) (a b c)) (lambda (x y) (+ x (% y 4))) 5 6))
 ;(define anExp2 '(let ((a 5) (b 7)) (+ a (let ((c 3) (b (- b 2))) (+ b c)))))
-(define anExp2 '(let ((a 5) (b 7)) (+ a (let ((c 3) (b (* c 2))) (+ b c))))) ;should be 14 when working
+;(define anExp2 '(let ((a 5) (b 7)) (+ a (let ((c 3) (b (* c 2))) (+ b c))))) ;should be 14 when working
 ;(define anExp2 '(let ((a 5) (b 4)) (+ a b)))
+;(define anExp2 '(let ((a (lambda (x) (* x 2))) (b (lambda (x y) (+ x y)))) (b (a 5) (a 7))))
+(define anExp2 '(let ((fact (lambda (x) (if (== x 1) 1 (* x (fact (- x 1))))))) (fact 4)))
 ;^ what a let expression looks like
 ;an app expression whos car is the list let expression
 ;whos cadr is an app expression that is a list of app expressions

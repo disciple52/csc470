@@ -186,8 +186,8 @@
   (lambda (appExp env)
     (let ((boolExp (eval-exp (car appExp) env))
           (trueExp (eval-exp (cadr appExp) env))
-          (falseExp (eval-exp (caddr appExp) env)))
-    (if boolExp trueExp falseExp))))
+          (falseExp (caddr appExp)))
+    (if boolExp trueExp (eval-exp falseExp env))))) ;recursion now works -> moved when we evaluate
                    
 (define eval-exp
     (lambda (lce env)

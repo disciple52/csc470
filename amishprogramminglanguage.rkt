@@ -150,7 +150,7 @@
                (list
                 (if (eq? (caadr (cdr (car loexp))) 'lambda-exp)
                     (cadr (cdr (car loexp)))
-                    ((eval-exp (cadr (cdr (car loexp))) env))))
+                    (eval-exp (cadr (cdr (car loexp))) env)))
                env)))))
 
 ;evaluates an app expression whose car is a arithmetic boolean operator
@@ -182,12 +182,23 @@
          (else #f)))))
 
 ;evaluates an appexpression who's car is an if-exp
+
+;(trueExp (eval-exp (cadr appExp) env))
+;(falseExp (eval-exp (caddr appExp) env)))
+
 (define eval-if-exp
   (lambda (appExp env)
-    (let ((boolExp (eval-exp (car appExp) env))
-          (trueExp (eval-exp (cadr appExp) env))
-          (falseExp (caddr appExp)))
-    (if boolExp trueExp (eval-exp falseExp env))))) ;recursion now works -> moved when we evaluate
+    (let ((boolExp (eval-exp (car appExp) env)))
+    (if boolExp
+        (eval-exp (cadr appExp) env)
+        (eval-exp (caddr appExp) env)))))
+
+(define eval-while-exp
+  (lambda (appExp env)
+    (let ((boolExp (eval-exp (car appExp) env)))
+    (if boolExp
+        (list (eval-exp (cadr appExp) env) (eval-while-exp appExp env))
+        #F))))
                    
 (define eval-exp
     (lambda (lce env)
@@ -213,12 +224,15 @@
           ((eq? (list-ref (list-ref lce 1) 0) 'bool-arith-op-exp)
            ;first element of app-exp is a bool-arith-op-exp
            (eval-bool-arith-op-exp (cdr lce) env))
-          ((eq? (list-ref (list-ref lce 1) 0) 'if-exp)
+           ((eq? (list-ref (list-ref lce 1) 0) 'if-exp)
            ;first element of app-exp is an if-exp
             (eval-if-exp (cddr lce) env))
-          ((eq? (list-ref (list-ref lce 1) 0) 'let-exp)
+           ((eq? (list-ref (list-ref lce 1) 0) 'while-exp)
+           ;first element of app-exp is an while-exp
+            (eval-while-exp (cddr lce) env))
+           ((eq? (list-ref (list-ref lce 1) 0) 'let-exp)
            ;first element of app-exp is an let-exp
-           (eval-exp (list-ref lce 3) (extend-env-4-let (cdr (list-ref lce 2)) env)))
+            (eval-exp (list-ref lce 3) (extend-env-4-let (cdr (list-ref lce 2)) env)))
           (else
            ;first element of app-exp is a var-exp
             (let ((theLambda (eval-exp (list-ref lce 1) env))
@@ -226,9 +240,9 @@
                               (if (eq? (car x) 'lambda-exp)
                                   x
                                   (eval-exp x env))) (cddr lce))))
-               (eval-exp theLambda (extend-env-4-lambda (list-ref theLambda 1)
-                                                        theInputs
-                                                        env)))))))))
+              (eval-exp theLambda (extend-env-4-lambda (list-ref theLambda 1)
+                                                       theInputs
+                                                       env)))))))))
 
 (define run-program
   (lambda (lce)
@@ -239,12 +253,15 @@
 ;(define anExp2 '((lambda (a b) b) 5 6))
 ;(define anExp2 '((lambda ()7)))
 
+(define anExp2 '(let ((i 6)) (while (< i 5) (+ i 1))))
+;(define anExp2 '(let ((i 0)) (while (< i 5) (block i (set i (+ i 1))))))
+;(define anExp2 '(let ((fact (lambda (x) (if (== x 1) 1 (* x (fact (- x 1))))))) (fact 4))) 
 ;(define anExp2 '((lambda (a b c) (a b c)) (lambda (x y) (+ x (% y 4))) 5 6))
 ;(define anExp2 '(let ((a 5) (b 7)) (+ a (let ((c 3) (b (- b 2))) (+ b c)))))
 ;(define anExp2 '(let ((a 5) (b 7)) (+ a (let ((c 3) (b (* c 2))) (+ b c))))) ;should be 14 when working
 ;(define anExp2 '(let ((a 5) (b 4)) (+ a b)))
 ;(define anExp2 '(let ((a (lambda (x) (* x 2))) (b (lambda (x y) (+ x y)))) (b (a 5) (a 7))))
-(define anExp2 '(let ((fact (lambda (x) (if (== x 1) 1 (* x (fact (- x 1))))))) (fact 4)))
+;(define anExp2 '(let ((fact (lambda (x) (if (== x 1) 1 (* x (fact (- x 1))))))) (fact 4)))
 ;^ what a let expression looks like
 ;an app expression whos car is the list let expression
 ;whos cadr is an app expression that is a list of app expressions

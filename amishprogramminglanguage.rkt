@@ -2,7 +2,7 @@
 (define listOfOperators '(+ - * / %))
 (define listOfArithmeticBooleanOperators '(< > <= >= == !=))
 (define listOfLogicalBooleanOperators '(&& ||)) ;Not added yet
-(define listOfReservedWords '(if let while))
+(define listOfReservedWords '(if let while set block))
 
 ;generic helper functions
 ;returns true if val is found in lst
@@ -43,7 +43,6 @@
         (if (eq? resolved #f)
             (apply-env var (cdr env))
             resolved))))))
-
 ;-----------------------
 ;constructors related to the LCE types
 (define lit-exp
@@ -107,6 +106,8 @@
           (cond
             ((eq? lcExp 'if) (list 'if-exp))
             ((eq? lcExp 'let) (list 'let-exp))
+            ((eq? lcExp 'set) (list 'set-exp))
+            ((eq? lcExp 'block) (list 'block-exp))
             ((eq? lcExp 'while) (list 'while-exp))))
          (else (list 'var-exp lcExp))))
       ((eq? (car lcExp) 'lambda)
@@ -124,6 +125,23 @@
 ;;;(unparse-exp (parse-exp anExp))
 
 ;------------
+(define update-scope
+  (lambda (var val scope)
+    (map (lambda (lst)
+           (if (eq? (car lst) var)
+               (list var val)
+               lst))
+         scope)))
+
+(define update-env
+  (lambda (var val env)
+    (cond
+      ((null? env) #F)
+      (else (let ((currScope (car env)))
+              (if (not (eqv? (apply-scope var currScope) #f))
+                  (cons (update-scope var val currScope) (cdr env))
+                  (cons currScope (update-env var val (cdr env)))))))))
+
 (define extend-env-4-lambda-helper
   (lambda (lovars lovals scope)
     (cond
@@ -165,21 +183,21 @@
         ((eq? theOp '>) (> op1 op2))
         ((eq? theOp '>=) (>= op1 op2))
         ((eq? theOp '==) (= op1 op2))
-        ((eq? theOp '!=) (not (= op1 op2)))))))
+        ((eq? theOp '!=) (not(= op1 op2)))))))
 
 ;evaluates an app expression who's car is an operator
 (define eval-op-exp
   (lambda (appExp env)
     (let ((op1 (eval-exp (cadr appExp) env))
-           (op2 (eval-exp (caddr appExp) env))
-           (theOp (cadar appExp)))
-       (cond
-         ((eq? theOp '+) (+ op1 op2))
-         ((eq? theOp '-) (- op1 op2))
-         ((eq? theOp '*) (* op1 op2))
-         ((eq? theOp '/) (/ op1 op2))
-         ((eq? theOp '%) (modulo op1 op2))
-         (else #f)))))
+          (op2 (eval-exp (caddr appExp) env))
+          (theOp (cadar appExp)))
+      (cond
+        ((eq? theOp '+) (+ op1 op2))
+        ((eq? theOp '-) (- op1 op2))
+        ((eq? theOp '*) (* op1 op2))
+        ((eq? theOp '/) (/ op1 op2))
+        ((eq? theOp '%) (modulo op1 op2))
+        (else #f)))))
 
 ;evaluates an appexpression who's car is an if-exp
 
@@ -199,50 +217,69 @@
     (if boolExp
         (list (eval-exp (cadr appExp) env) (eval-while-exp appExp env))
         #F))))
+
+(define eval-block-exp
+  (lambda (listOfExprs env)
+    (if (null? listOfExprs)
+        '()
+        (let ((result (eval-exp (car listOfExprs) env)))
+          (if (list? result)
+              (eval-block-exp (cdr listOfExprs) result)
+              (cons result (eval-block-exp (cdr listOfExprs) env)))))))
                    
 (define eval-exp
-    (lambda (lce env)
-     (cond
-       ((eq? (car lce) 'bool-exp) (cadr lce))
-       ((eq? (car lce) 'lit-exp) (cadr lce))
-       ((eq? (car lce) 'var-exp) (apply-env (cadr lce) env))
-       ((eq? (car lce) 'lambda-exp) (eval-exp (caddr lce) env))
-       (else
-        (cond
-          ((eq? (list-ref (list-ref lce 1) 0) 'lambda-exp)
-            ;first element of app-exp is a lambda
-            (eval-exp (list-ref (list-ref lce 1) 2)
-                      (extend-env-4-lambda
-                       (list-ref (list-ref lce 1) 1)
-                       (map (lambda (x)
-                              (if (eq? (car x) 'lambda-exp)
-                                  x
-                                  (eval-exp x env))) (cddr lce)) env)))
-          ((eq? (list-ref (list-ref lce 1) 0) 'op-exp)
-           ;first element of app-exp is a op-exp
-           (eval-op-exp (cdr lce) env))
-          ((eq? (list-ref (list-ref lce 1) 0) 'bool-arith-op-exp)
-           ;first element of app-exp is a bool-arith-op-exp
-           (eval-bool-arith-op-exp (cdr lce) env))
-           ((eq? (list-ref (list-ref lce 1) 0) 'if-exp)
-           ;first element of app-exp is an if-exp
-            (eval-if-exp (cddr lce) env))
-           ((eq? (list-ref (list-ref lce 1) 0) 'while-exp)
-           ;first element of app-exp is an while-exp
-            (eval-while-exp (cddr lce) env))
-           ((eq? (list-ref (list-ref lce 1) 0) 'let-exp)
-           ;first element of app-exp is an let-exp
-            (eval-exp (list-ref lce 3) (extend-env-4-let (cdr (list-ref lce 2)) env)))
-          (else
-           ;first element of app-exp is a var-exp
-            (let ((theLambda (eval-exp (list-ref lce 1) env))
-                  (theInputs (map (lambda (x)
-                              (if (eq? (car x) 'lambda-exp)
-                                  x
-                                  (eval-exp x env))) (cddr lce))))
-              (eval-exp theLambda (extend-env-4-lambda (list-ref theLambda 1)
-                                                       theInputs
-                                                       env)))))))))
+  (lambda (lce env)
+    (cond
+      ((eq? (car lce) 'bool-exp) (cadr lce))
+      ((eq? (car lce) 'lit-exp) (cadr lce))
+      ((eq? (car lce) 'var-exp) (apply-env (cadr lce) env))
+      ((eq? (car lce) 'lambda-exp) (eval-exp (caddr lce) env))
+      (else
+       (cond
+         ((eq? (list-ref (list-ref lce 1) 0) 'lambda-exp)
+           ;first element of app-exp is a lambda
+           (eval-exp (list-ref (list-ref lce 1) 2)
+                     (extend-env-4-lambda
+                      (list-ref (list-ref lce 1) 1)
+                      (map (lambda (x)
+                             (if (eq? (car x) 'lambda-exp)
+                                 x
+                                 (eval-exp x env))) (cddr lce)) env)))
+         ((eq? (list-ref (list-ref lce 1) 0) 'op-exp)
+          ;first element of app-exp is a op-exp
+          (eval-op-exp (cdr lce) env))
+         ((eq? (list-ref (list-ref lce 1) 0) 'bool-arith-op-exp)
+          ;first element of app-exp is a bool-arith-op-exp
+          (eval-bool-arith-op-exp (cdr lce) env))
+         ((eq? (list-ref (list-ref lce 1) 0) 'if-exp)
+          ;first element of app-exp is an if-exp
+          (eval-if-exp (cddr lce) env))
+         ((eq? (list-ref (list-ref lce 1) 0) 'set-exp)
+          ;first element of app-exp is an set-exp
+          (update-env
+           (list-ref (list-ref lce 2) 1)
+           (eval-exp (list-ref lce 3) env)
+           env))
+         ((eq? (list-ref (list-ref lce 1) 0) 'block-exp)
+          ;first element of app-exp is an block-exp
+          (let ((listOfExprs (cdr (list-ref lce 2))))
+            (eval-block-exp listOfExprs env)))
+         ((eq? (list-ref (list-ref lce 1) 0) 'while-exp)
+          ;first element of app-exp is an while-exp
+          (eval-while-exp (cddr lce) env))
+         ((eq? (list-ref (list-ref lce 1) 0) 'let-exp)
+          ;first element of app-exp is an let-exp
+          (eval-exp (list-ref lce 3) (extend-env-4-let (cdr (list-ref lce 2)) env)))
+         (else
+          ;first element of app-exp is a var-exp
+           (let ((theLambda (eval-exp (list-ref lce 1) env))
+                 (theInputs (map (lambda (x)
+                             (if (eq? (car x) 'lambda-exp)
+                                 x
+                                 (eval-exp x env))) (cddr lce))))
+             (eval-exp theLambda (extend-env-4-lambda (list-ref theLambda 1)
+                                                      theInputs
+                                                      env)))))))))
 
 (define run-program
   (lambda (lce)
@@ -253,7 +290,8 @@
 ;(define anExp2 '((lambda (a b) b) 5 6))
 ;(define anExp2 '((lambda ()7)))
 
-(define anExp2 '(let ((i 6)) (while (< i 5) (+ i 1))))
+;(define anExp2 '(let ((i 0)) (while (< i 5) (block (i (set i (i+ i 1)))))))
+(define anExp2 '(let ((a 5) (b 4) (c 5)) (while (!= a 0) (block (a (set a (- a 1)))))))
 ;(define anExp2 '(let ((i 0)) (while (< i 5) (block i (set i (+ i 1))))))
 ;(define anExp2 '(let ((fact (lambda (x) (if (== x 1) 1 (* x (fact (- x 1))))))) (fact 4))) 
 ;(define anExp2 '((lambda (a b c) (a b c)) (lambda (x y) (+ x (% y 4))) 5 6))
